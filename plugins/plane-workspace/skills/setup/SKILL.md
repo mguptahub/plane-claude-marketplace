@@ -3,238 +3,120 @@ name: setup
 description: Initial setup wizard — configure your identity, connect to Plane, map projects to repos, and generate your personal agent. Re-run to add projects or reset.
 user-invocable: true
 argument-hint: "[--reset]"
-allowed-tools: ["Bash(grep *)", "Bash(ls *)", "Bash(cat *)", "Bash(mkdir *)", "Bash(curl *)", "Bash(python3 *)", "Bash(find *)", "Write", "Read", "Skill(update-config)"]
+allowed-tools: ["Bash(find *)", "Bash(*/plane-workspace/scripts/setup.sh *)", "Write", "Read", "Skill(update-config)"]
 ---
 
 # /setup — Plane Workspace Setup Wizard
 
-> **IMPORTANT**: Do NOT use any session memory, prior context, or remembered values to pre-fill or skip any step. Every question must be asked explicitly and answered by the user in this session. Never assume you know the user's name, email, role, token, or any other value.
+> **IMPORTANT**: Do NOT use any session memory, prior context, or remembered values to pre-fill or skip any step. Every question must be asked explicitly and answered by the user in this session. Never assume any value.
 
-## Pre-check: Detect Install Scope & Paths
-
-First, find the plugin's own installed file — this gives us the Claude home and templates dir without any hardcoding:
+## 0. Find the setup script
 
 ```bash
-SKILL_FILE=$(find "$HOME" -maxdepth 8 -name "SKILL.md" \
-  -path "*/plane-workspace/skills/setup/*" 2>/dev/null | head -1)
-
-# Claude home = everything before /plugins/
-CLAUDE_HOME=$(echo "$SKILL_FILE" | sed 's|/plugins/.*||')
-
-# Templates dir = sibling of skills/
-TEMPLATES_DIR=$(echo "$SKILL_FILE" | sed 's|/skills/setup/SKILL.md|/templates|')
-
-echo "Claude home: $CLAUDE_HOME"
-echo "Templates: $TEMPLATES_DIR"
+find "$HOME" -maxdepth 10 -name "setup.sh" \
+  -path "*/plane-workspace/scripts/*" 2>/dev/null | head -1
 ```
 
-This works regardless of how the user named their Claude home (`~/.claude`, `~/.claude-plane`, or anything else).
+Store as `SETUP_SCRIPT`. If not found, tell the user the plugin may not be installed correctly.
 
-Now detect scope — the installer writes a reference into the project dir for local/project scope:
+## 1. Collect Identity
+
+Use `AskUserQuestion` to collect all identity fields in one prompt:
+- Full name
+- Work email
+- Role (select: frontend / backend / fullstack / devops / qa / pm / ea / designer / recruiter / other)
+- If "other": ask for a short role description
+- Agent name — what should your agent be called? (e.g. `manish`, `priya`) — becomes `<name>.md`
+- Do you write code? (auto-yes for frontend/backend/fullstack/devops/qa — only ask for pm/ea/designer/recruiter/other)
+
+## 2. Collect Plane Connection
+
+Use `AskUserQuestion` to collect in one prompt:
+- Workspace slug (the part after `app.plane.so/`) — leave blank to skip
+- API token (from Plane Settings → API Tokens) — leave blank to skip Plane/MCP setup
+- API base URL (default: `https://api.plane.so` — only needed if self-hosted)
+
+If both slug and token are blank, Plane MCP connection will be skipped. The user can re-run `/setup` later to connect.
+
+## 3. Validate & Fetch Projects
+
+Pass `-` for token/slug if the user left them blank:
 
 ```bash
-grep -rq "plane-claude-mcp\|plane-claude-marketplace\|plane-workspace" \
-  "$(pwd)/.claude/" "$(pwd)/.mcp.json" 2>/dev/null \
-  && echo "LOCAL" || echo "USER"
+"$SETUP_SCRIPT" init <api_base> <api_token_or_-> <slug_or_-> "$(pwd)"
 ```
 
-Determine `BASE_PATH`:
-- `LOCAL` → **local/project scope** → `BASE_PATH = $(pwd)/.claude`
-- `USER` → **user scope** → `BASE_PATH = $CLAUDE_HOME`
+This always detects the install scope. If a token was provided, it also validates it and returns the project list.
 
-Show the user: *"Detected: [local|user] scope — writing to `<BASE_PATH>`"*
+- If it returns `{"error": ...}` → show the error, ask the user to re-check token/slug, go back to step 2.
+- If result has `"no_token": true` → note: *"No Plane connection configured. You can add it later by re-running /setup."* Skip straight to step 5 (no project selection; `selected_projects` will be `[]`).
+- If successful with token → show: *"Connected as [display_name]. Detected [scope] scope."*
 
-Check for existing config:
-```bash
-cat "$BASE_PATH/plane-workspace.json" 2>/dev/null || echo "NOT_FOUND"
-```
+Parse and display the project list as `IDENTIFIER — Name`.
 
-If found and `$ARGUMENTS` does not contain `--reset`, ask:
-> "Config found. Do you want to: (a) Add a project mapping (b) Full reset (c) Cancel"
+## 4. Select Projects & Repo Paths
 
----
+*(Skip this step entirely if no token was provided — go to step 5.)*
 
-## Step 1 — Your Identity
+Use `AskUserQuestion` to ask:
+- **Which projects do you work on?** (enter identifiers, e.g. `INFRA, WEB`)
+- For each selected project (if user writes code): **Repo folder(s)?** (comma-separated paths, or "none")
 
-Ask:
-1. **Full name**
-2. **Work email**
-3. **Role** — select from:
-   - `frontend` — Frontend Engineer
-   - `backend` — Backend Engineer
-   - `fullstack` — Full-Stack Engineer
-   - `devops` — DevOps Engineer
-   - `qa` — QA / Tester
-   - `pm` — Product Manager
-   - `ea` — Executive Assistant
-   - `designer` — Designer
-   - `recruiter` — Recruiter
-   - `other` — (prompt: "Describe your role in a few words")
-4. **Agent name** — *"What should your agent be called?"* (e.g., `manish`, `akshat`, `priya`) — this becomes `<name>.md` in the agents folder
-5. **Do you write code?** — auto-yes for frontend/backend/fullstack/devops/qa. Ask for pm/ea/designer/recruiter/other.
+## 5. Run Full Setup
 
----
-
-## Step 2 — Plane Connection
-
-Ask:
-1. **Workspace slug** — part after `app.plane.so/` in their URL
-2. **API token** — from Plane Settings → API Tokens
-3. **API base URL** — default `https://api.plane.so` (change for self-hosted)
-
-Validate token:
-```bash
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/users/me/"
-```
-
-- Success → confirm: *"Connected as [display_name] — User ID: [id]"*
-- Failure → show error, ask to retry. Do not proceed until validated.
-
-Store `plane_user_id` from the `id` field.
-
-**Configure MCP credentials** — the installer already created `.mcp.json` at the correct scope location. Update it with the real credentials.
-
-Locate the existing `.mcp.json`:
-- Local/project scope → `$(pwd)/.mcp.json`
-- User scope → `$CLAUDE_HOME/.mcp.json`
-
-Update the `plane-claude-mcp` entry to match this exact structure:
+Build a config JSON and write it to `/tmp/plane-setup-config.json`:
 
 ```json
 {
-  "mcpServers": {
-    "plane-claude-mcp": {
-      "command": "uvx",
-      "args": ["plane-mcp-server", "stdio"],
-      "env": {
-        "PLANE_API_KEY": "<api_token>",
-        "PLANE_WORKSPACE_SLUG": "<slug>",
-        "PLANE_BASE_URL": "<api_base>"
-      }
-    }
-  }
-}
-```
-
-Do NOT create a new `.mcp.json` anywhere else. Do NOT use `PLANE_API_TOKEN` — the correct key is `PLANE_API_KEY`.
-
-Also add `"mcp__plane-claude-mcp__*"` to allowed permissions using `Skill(update-config)` at the same scope level.
-
----
-
-## Step 3 — Project Mapping
-
-Fetch all projects from the workspace:
-```bash
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/"
-```
-
-Display a clean list: `IDENTIFIER — Project Name` for each project.
-
-Ask: *"Which projects do you work on? Enter the identifiers separated by commas (e.g. INFRA, WEB)"*
-
-Only proceed with the projects the user selected. For each selected project:
-- **Repo folder(s)?** — comma-separated local paths, or "none"
-  - Skip if user does not write code
-
-Fetch metadata only for selected projects (run in parallel):
-```bash
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/states/"
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/labels/"
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/members/"
-```
-
-Only store selected projects in `plane-workspace.json`. Do not include any other projects.
-
----
-
-## Step 4 — Write plane-workspace.json
-
-```bash
-mkdir -p "$BASE_PATH"
-```
-
-Write to `$BASE_PATH/plane-workspace.json`:
-
-```json
-{
-  "_meta": {
-    "setup_date": "<YYYY-MM-DD>",
-    "scope": "<user|project|local>",
-    "base_path": "<BASE_PATH>"
-  },
+  "base_path": "<from init output>",
+  "scope": "<from init output>",
   "user": {
     "name": "<name>",
     "email": "<email>",
     "role": "<role>",
     "role_description": "<custom or null>",
-    "agent_name": "<chosen agent name>",
-    "plane_user_id": "<id>",
+    "agent_name": "<agent_name>",
+    "plane_user_id": "<from init output, or empty string if no token>",
     "writes_code": <true|false>
   },
   "plane": {
-    "workspace_slug": "<slug>",
+    "workspace_slug": "<slug or empty>",
     "api_base": "<api_base>",
-    "mcp_server": "plane-claude-mcp"
+    "api_token": "<token or empty — omit key if no token>"
   },
-  "projects": [
+  "selected_projects": [
     {
-      "identifier": "<ID>",
-      "id": "<project_id>",
-      "name": "<name>",
-      "repos": ["<path1>"],
-      "states": [{"name": "...", "id": "...", "group": "..."}],
-      "labels": [{"name": "...", "id": "...", "color": "..."}],
-      "members": [{"name": "...", "id": "...", "email": "..."}]
+      "identifier": "INFRA",
+      "id": "<from init output>",
+      "name": "<from init output>",
+      "repos": ["/path/to/repo1", "/path/to/repo2"]
     }
   ]
 }
 ```
 
----
-
-## Step 5 — Generate Agent File
-
-Use `TEMPLATES_DIR` derived in the Pre-check step. Read the role template:
+Then run:
 
 ```bash
-cat "$TEMPLATES_DIR/<role>.md"
+"$SETUP_SCRIPT" run /tmp/plane-setup-config.json
 ```
 
-Replace all placeholders:
+This writes `plane-workspace.json`, generates the agent file, and (if token present) fetches metadata + updates `.mcp.json`.
 
-| Placeholder | Value |
-|:------------|:------|
-| `{{AGENT_NAME}}` | Chosen agent name |
-| `{{AGENT_CONTEXT}}` | "You are acting as **[name]**, a [role title]." |
-| `{{AGENT_ROLE_TITLE}}` | Role display name (e.g., "DevOps Engineer") |
-| `{{PLANE_USER_ID}}` | Plane user ID |
-| `{{OWNER_NAME}}` | Same as agent name (self context) |
-| `{{CUSTOM_NOTES}}` | Remove this line entirely |
+Also run `Skill(update-config)` to add `"mcp__plane-claude-mcp__*"` to allowed permissions.
 
-Write to:
-```bash
-mkdir -p "$BASE_PATH/agents"
-```
+## 6. Confirm
 
-Write to `$BASE_PATH/agents/<agent-name>.md`
-
----
-
-## Step 6 — Confirm
+Show the script's output to the user. Then add:
 
 ```
-✅ Plane workspace setup complete!
-
-  You:      <name> (<role>) — <email>
-  Agent:    $BASE_PATH/agents/<agent-name>.md ✓
-  Plane:    <workspace_slug> (User ID: <plane_user_id>)
-  MCP:      plane-claude-mcp ✓
-  Projects: <count> mapped
-  Scope:    <user|local|project>
-
 Next steps:
   /helpers add devops    → Add a DevOps helper
   /helpers add pm        → Add a PM helper
   /helpers add ea        → Add an EA for briefings
+```
+
+If Plane was not connected, also show:
+```
+  /setup                 → Re-run to add your Plane API token
 ```
