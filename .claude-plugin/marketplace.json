@@ -1,0 +1,17 @@
+{
+  "name": "plane-claude-marketplace",
+  "description": "Official Claude Code plugin marketplace for Plane — workspace context, work item management, and role-based agents for your team.",
+  "author": {
+    "name": "Manish Gupta",
+    "email": "manish@mguptahub.com"
+  },
+  "plugins": [
+    {
+      "name": "plane-workspace",
+      "path": "./plugins/plane-workspace",
+      "description": "Connect Claude Code to your Plane workspace. Setup wizard, personal agent, helper agents, and full work item workflows.",
+      "version": "0.1.0",
+      "keywords": ["workspace","plane","development"]
+    }
+  ]
+}
