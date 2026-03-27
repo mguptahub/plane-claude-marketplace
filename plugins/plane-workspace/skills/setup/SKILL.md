@@ -3,23 +3,30 @@ name: setup
 description: Initial setup wizard — configure your identity, connect to Plane, map projects to repos, and generate your personal agent. Re-run to add projects or reset.
 user-invocable: true
 argument-hint: "[--reset]"
+allowed-tools: ["Bash(echo *)", "Bash(ls *)", "Bash(cat *)", "Bash(mkdir *)", "Bash(curl *)", "Bash(python3 *)", "Write", "Read"]
 ---
 
 # /setup — Plane Workspace Setup Wizard
 
 ## Pre-check: Detect Install Scope
 
-The installer already placed `.mcp.json` in the right location based on the scope the user selected. Use that as the signal:
+Run this bash command to get the actual plugin root:
 
 ```bash
-ls "$(pwd)/.mcp.json" 2>/dev/null && echo "project" || echo "user"
+echo $CLAUDE_PLUGIN_ROOT
 ```
 
-Determine `BASE_PATH`:
-- `.mcp.json` found in current directory → **project/local scope** → `BASE_PATH = <cwd>/.claude`
-- Not found → **user scope** → `BASE_PATH = ~/.claude`
+From the output, derive `BASE_PATH` — the Claude home directory where all output files will go:
 
-All output files (`plane-workspace.json`, `agents/<name>.md`) go to `BASE_PATH`. Never write to the plugin's own directory.
+- Extract the portion of the path up to and including the first `.claude*` directory segment.
+  - Example: `/Users/manish/.claude-plane/plugins/marketplaces/...` → `BASE_PATH = /Users/manish/.claude-plane`
+  - Example: `/Volumes/Work/project/.claude/plugins/...` → `BASE_PATH = /Volumes/Work/project/.claude`
+
+Scope interpretation:
+- `BASE_PATH` is inside the user's home directory at top level (e.g., `~/.claude-plane`, `~/.claude`) → **user scope**
+- `BASE_PATH` is inside a project directory → **local or project scope**
+
+All output files (`plane-workspace.json`, `agents/<name>.md`) go to `BASE_PATH`. Never hardcode `~/.claude` — always derive from `$CLAUDE_PLUGIN_ROOT`.
 
 Check if config already exists:
 ```bash
