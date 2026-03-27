@@ -10,23 +10,30 @@ allowed-tools: ["Bash(echo *)", "Bash(ls *)", "Bash(cat *)", "Bash(mkdir *)", "B
 
 ## Pre-check: Detect Install Scope
 
-Run this bash command to get the actual plugin root:
+Find where this skill's own file is installed — that reveals the scope:
 
 ```bash
-echo $CLAUDE_PLUGIN_ROOT
+find "$HOME" "$(pwd)" -name "SKILL.md" -path "*/plane-workspace/skills/setup/*" 2>/dev/null | head -1
 ```
 
-From the output, derive `BASE_PATH` — the Claude home directory where all output files will go:
+From the result, derive `BASE_PATH`:
 
-- Extract the portion of the path up to and including the first `.claude*` directory segment.
-  - Example: `/Users/manish/.claude-plane/plugins/marketplaces/...` → `BASE_PATH = /Users/manish/.claude-plane`
-  - Example: `/Volumes/Work/project/.claude/plugins/...` → `BASE_PATH = /Volumes/Work/project/.claude`
+- Path contains `$HOME/.claude-plane/` or `$HOME/.claude/` at top level → **user scope**
+  → `BASE_PATH = $HOME/.claude-plane` (or whatever the `.claude*` dir is under `$HOME`)
+- Path contains the current working directory → **local or project scope**
+  → `BASE_PATH = $(pwd)/.claude`
 
-Scope interpretation:
-- `BASE_PATH` is inside the user's home directory at top level (e.g., `~/.claude-plane`, `~/.claude`) → **user scope**
-- `BASE_PATH` is inside a project directory → **local or project scope**
+Extract `BASE_PATH` by taking everything up to and including the first `.claude*` segment in the found path.
 
-All output files (`plane-workspace.json`, `agents/<name>.md`) go to `BASE_PATH`. Never hardcode `~/.claude` — always derive from `$CLAUDE_PLUGIN_ROOT`.
+Confirm scope before proceeding: *"Detected: [user|local|project] scope — writing to `BASE_PATH`. Continue?"*
+
+Check for existing config:
+```bash
+cat "$BASE_PATH/plane-workspace.json" 2>/dev/null || echo "NOT_FOUND"
+```
+
+If found and `$ARGUMENTS` does not contain `--reset`, ask:
+> "Config found. Do you want to: (a) Add a project mapping (b) Full reset (c) Cancel"
 
 Check if config already exists:
 ```bash
