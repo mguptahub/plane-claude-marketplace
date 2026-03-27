@@ -92,19 +92,33 @@ curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/users/me/"
 
 Store `plane_user_id` from the `id` field.
 
-**Configure MCP credentials** — the installer already created `.mcp.json` in the right place. Find and update it:
+**Configure MCP credentials** — the installer already created `.mcp.json` at the correct scope location. Update it with the real credentials.
 
-```bash
-# For local/project scope — update the project's .mcp.json
-cat "$(pwd)/.mcp.json" 2>/dev/null
+Locate the existing `.mcp.json`:
+- Local/project scope → `$(pwd)/.mcp.json`
+- User scope → `$CLAUDE_HOME/.mcp.json`
 
-# For user scope — update the Claude home .mcp.json
-cat "$CLAUDE_HOME/.mcp.json" 2>/dev/null
+Update the `plane-claude-mcp` entry to match this exact structure:
+
+```json
+{
+  "mcpServers": {
+    "plane-claude-mcp": {
+      "command": "uvx",
+      "args": ["plane-mcp-server", "stdio"],
+      "env": {
+        "PLANE_API_KEY": "<api_token>",
+        "PLANE_WORKSPACE_SLUG": "<slug>",
+        "PLANE_BASE_URL": "<api_base>"
+      }
+    }
+  }
+}
 ```
 
-Use the file that exists (based on detected scope). Update the `plane-claude-mcp` server entry with the API credentials. Do NOT create a new `.mcp.json` in any other location.
+Do NOT create a new `.mcp.json` anywhere else. Do NOT use `PLANE_API_TOKEN` — the correct key is `PLANE_API_KEY`.
 
-Also add `"mcp__plane-claude-mcp__*"` to allowed permissions using `Skill(update-config)` scoped to the same level (project settings for local/project scope, user settings for user scope).
+Also add `"mcp__plane-claude-mcp__*"` to allowed permissions using `Skill(update-config)` at the same scope level.
 
 ---
 
