@@ -9,15 +9,17 @@ argument-hint: "[--reset]"
 
 ## Pre-check: Detect Install Scope
 
+The installer already placed `.mcp.json` in the right location based on the scope the user selected. Use that as the signal:
+
 ```bash
-echo $CLAUDE_PLUGIN_ROOT
+ls "$(pwd)/.mcp.json" 2>/dev/null && echo "project" || echo "user"
 ```
 
-Determine where to write output files:
-- If `$CLAUDE_PLUGIN_ROOT` starts with `~/.claude-plane` or `/Users/*/\.claude-plane` → **user scope** → write to `~/.claude/`
-- Otherwise → **project/local scope** → write to `.claude/` in the current working directory
+Determine `BASE_PATH`:
+- `.mcp.json` found in current directory → **project/local scope** → `BASE_PATH = <cwd>/.claude`
+- Not found → **user scope** → `BASE_PATH = ~/.claude`
 
-Store this as `BASE_PATH` (either `~/.claude` or `<cwd>/.claude`). All output files go here.
+All output files (`plane-workspace.json`, `agents/<name>.md`) go to `BASE_PATH`. Never write to the plugin's own directory.
 
 Check if config already exists:
 ```bash
