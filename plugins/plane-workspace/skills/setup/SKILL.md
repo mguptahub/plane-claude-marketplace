@@ -110,21 +110,27 @@ Also add `"mcp__plane-claude-mcp__*"` to allowed permissions using `Skill(update
 
 ## Step 3 — Project Mapping
 
-Fetch projects:
+Fetch all projects from the workspace:
 ```bash
 curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/"
 ```
 
-Display the list. For each project:
+Display a clean list: `IDENTIFIER — Project Name` for each project.
+
+Ask: *"Which projects do you work on? Enter the identifiers separated by commas (e.g. INFRA, WEB)"*
+
+Only proceed with the projects the user selected. For each selected project:
 - **Repo folder(s)?** — comma-separated local paths, or "none"
   - Skip if user does not write code
 
-Fetch metadata for each project in parallel (states, labels, members):
+Fetch metadata only for selected projects (run in parallel):
 ```bash
 curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/states/"
 curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/labels/"
 curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/members/"
 ```
+
+Only store selected projects in `plane-workspace.json`. Do not include any other projects.
 
 ---
 
