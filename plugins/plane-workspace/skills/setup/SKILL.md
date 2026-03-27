@@ -8,6 +8,8 @@ allowed-tools: ["Bash(grep *)", "Bash(ls *)", "Bash(cat *)", "Bash(mkdir *)", "B
 
 # /setup — Plane Workspace Setup Wizard
 
+> **IMPORTANT**: Do NOT use any session memory, prior context, or remembered values to pre-fill or skip any step. Every question must be asked explicitly and answered by the user in this session. Never assume you know the user's name, email, role, token, or any other value.
+
 ## Pre-check: Detect Install Scope & Paths
 
 First, find the plugin's own installed file — this gives us the Claude home and templates dir without any hardcoding:
@@ -90,23 +92,19 @@ curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/users/me/"
 
 Store `plane_user_id` from the `id` field.
 
-**Configure MCP credentials** — the installer already created `.mcp.json`. Update it with credentials using `Skill(update-config)`:
+**Configure MCP credentials** — the installer already created `.mcp.json` in the right place. Find and update it:
 
-```json
-{
-  "mcpServers": {
-    "plane-claude-mcp": {
-      "env": {
-        "PLANE_API_TOKEN": "<token>",
-        "PLANE_BASE_URL": "<api_base>",
-        "PLANE_WORKSPACE_SLUG": "<slug>"
-      }
-    }
-  }
-}
+```bash
+# For local/project scope — update the project's .mcp.json
+cat "$(pwd)/.mcp.json" 2>/dev/null
+
+# For user scope — update the Claude home .mcp.json
+cat "$CLAUDE_HOME/.mcp.json" 2>/dev/null
 ```
 
-Also add permissions via `Skill(update-config)`: `"mcp__plane-claude-mcp__*"`
+Use the file that exists (based on detected scope). Update the `plane-claude-mcp` server entry with the API credentials. Do NOT create a new `.mcp.json` in any other location.
+
+Also add `"mcp__plane-claude-mcp__*"` to allowed permissions using `Skill(update-config)` scoped to the same level (project settings for local/project scope, user settings for user scope).
 
 ---
 
