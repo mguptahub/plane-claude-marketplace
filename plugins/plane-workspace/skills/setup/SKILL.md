@@ -1,79 +1,73 @@
 ---
 name: setup
-description: Initial setup wizard — configure your identity, connect to Plane, map projects to repos, and generate your personal agent. Re-run to add projects or reset config.
+description: Initial setup wizard — configure your identity, connect to Plane, map projects to repos, and generate your personal agent. Re-run to add projects or reset.
 user-invocable: true
 argument-hint: "[--reset]"
 ---
 
 # /setup — Plane Workspace Setup Wizard
 
-Set up or reconfigure your Plane workspace plugin. Guides you through identity, Plane API connection, project mapping, and personal agent generation.
-
----
-
-## Pre-check
+## Pre-check: Detect Install Scope
 
 ```bash
-cat "$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json" 2>/dev/null || echo "NOT_FOUND"
+echo $CLAUDE_PLUGIN_ROOT
 ```
 
-If config exists and `$ARGUMENTS` does not contain `--reset`, ask:
-> "You already have a workspace configured. Do you want to:
-> (a) Add a new project mapping
-> (b) Full reconfigure (reset everything)
-> (c) Cancel"
+Determine where to write output files:
+- If `$CLAUDE_PLUGIN_ROOT` starts with `~/.claude-plane` or `/Users/*/\.claude-plane` → **user scope** → write to `~/.claude/`
+- Otherwise → **project/local scope** → write to `.claude/` in the current working directory
 
-If (a) → skip to Step 3, reusing existing user/plane data.
-If (b) → proceed from Step 1.
-If (c) → exit.
+Store this as `BASE_PATH` (either `~/.claude` or `<cwd>/.claude`). All output files go here.
+
+Check if config already exists:
+```bash
+cat "$BASE_PATH/plane-workspace.json" 2>/dev/null || echo "NOT_FOUND"
+```
+
+If found and `$ARGUMENTS` does not contain `--reset`, ask:
+> "Config found. Do you want to: (a) Add a project mapping (b) Full reset (c) Cancel"
 
 ---
 
 ## Step 1 — Your Identity
 
-Ask the user:
-
-1. **Full name** — your name as it should appear in agents and comments
-2. **Work email** — your official email address
+Ask:
+1. **Full name**
+2. **Work email**
 3. **Role** — select from:
    - `frontend` — Frontend Engineer
    - `backend` — Backend Engineer
    - `fullstack` — Full-Stack Engineer
+   - `devops` — DevOps Engineer
    - `qa` — QA / Tester
-   - `other` — (prompt for a custom role description)
-4. **Do you write code?**
-   - Auto-yes for: frontend, backend, fullstack
-   - Ask explicitly for: qa, other
+   - `pm` — Product Manager
+   - `ea` — Executive Assistant
+   - `designer` — Designer
+   - `recruiter` — Recruiter
+   - `other` — (prompt: "Describe your role in a few words")
+4. **Agent name** — *"What should your agent be called?"* (e.g., `manish`, `akshat`, `priya`) — this becomes `<name>.md`
+5. **Do you write code?** — auto-yes for frontend/backend/fullstack/devops/qa. Ask for pm/ea/designer/recruiter/other.
 
 ---
 
 ## Step 2 — Plane Connection
 
-Ask for:
-
-1. **Workspace slug** — the part after `app.plane.so/` in their Plane URL (e.g., `my-company`)
+Ask:
+1. **Workspace slug** — part after `app.plane.so/` in their URL
 2. **API token** — from Plane Settings → API Tokens
-3. **API base URL** — default `https://api.plane.so` (change for self-hosted instances)
+3. **API base URL** — default `https://api.plane.so` (change for self-hosted)
 
-**Validate the token immediately:**
-
+Validate token:
 ```bash
-curl -s \
-  -H "X-Api-Key: <token>" \
-  "<api_base>/api/v1/users/me/"
+curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/users/me/"
 ```
 
-Parse the response:
-- On success: confirm *"Connected as [display_name] ([email]) — User ID: [id]"*
-- On failure: show the error, ask to retry. Do not proceed until validated.
+- Success → confirm: *"Connected as [display_name] — User ID: [id]"*
+- Failure → show error, ask to retry. Do not proceed until validated.
 
-Store:
-- `plane_user_id` — from `id` field in response
-- `display_name` and `email` for confirmation
+Store `plane_user_id` from the `id` field.
 
-**Set up MCP server:**
-
-Invoke `Skill(update-config)` to add to project `.mcp.json`:
+Set up MCP server — write to `<cwd>/.mcp.json` (project/local scope) or `~/.claude/.mcp.json` (user scope):
 
 ```json
 {
@@ -91,39 +85,29 @@ Invoke `Skill(update-config)` to add to project `.mcp.json`:
 }
 ```
 
-Also add `"mcp__plane-claude-mcp__*"` to allowed permissions via `Skill(update-config)`.
+Also add permissions via `Skill(update-config)`:
+```json
+"mcp__plane-claude-mcp__*"
+```
 
 ---
 
 ## Step 3 — Project Mapping
 
-Fetch all projects from the workspace:
-
+Fetch projects:
 ```bash
-curl -s \
-  -H "X-Api-Key: <token>" \
-  "<api_base>/api/v1/workspaces/<slug>/projects/"
+curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/"
 ```
 
-Display the list of projects (identifier + name).
+Display the list. For each project:
+- **Repo folder(s)?** — comma-separated local paths, or "none"
+  - Skip if user does not write code
 
-For each project, ask:
-- **Which local repo folder(s) map to this project?**
-  - Accept comma-separated paths or "none"
-  - Skip entirely if user does not write code (qa + writes_code=false)
-  - Multiple repos → multiple paths (e.g., `/home/user/plane, /home/user/plane-ee`)
-
-Fetch metadata for each project (run in parallel):
-
+Fetch metadata for each project in parallel (states, labels, members):
 ```bash
-# States
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<project_id>/states/"
-
-# Labels
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<project_id>/labels/"
-
-# Members
-curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<project_id>/members/"
+curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/states/"
+curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/labels/"
+curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<id>/members/"
 ```
 
 ---
@@ -131,24 +115,26 @@ curl -s -H "X-Api-Key: <token>" "<api_base>/api/v1/workspaces/<slug>/projects/<p
 ## Step 4 — Write plane-workspace.json
 
 ```bash
-mkdir -p "$CLAUDE_PLUGIN_ROOT/user"
+mkdir -p "$BASE_PATH"
 ```
 
-Write to `$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json`:
+Write to `$BASE_PATH/plane-workspace.json`:
 
 ```json
 {
   "_meta": {
     "setup_date": "<YYYY-MM-DD>",
-    "plugin_version": "1.0.0"
+    "scope": "<user|project|local>",
+    "plugin_root": "<CLAUDE_PLUGIN_ROOT>"
   },
   "user": {
     "name": "<name>",
     "email": "<email>",
     "role": "<role>",
-    "role_description": "<custom description or null>",
-    "plane_user_id": "<id from /me>",
-    "writes_code": true
+    "role_description": "<custom or null>",
+    "agent_name": "<chosen agent name>",
+    "plane_user_id": "<id>",
+    "writes_code": "<true|false>"
   },
   "plane": {
     "workspace_slug": "<slug>",
@@ -157,19 +143,13 @@ Write to `$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json`:
   },
   "projects": [
     {
-      "identifier": "<IDENTIFIER>",
+      "identifier": "<ID>",
       "id": "<project_id>",
-      "name": "<project name>",
-      "repos": ["<path1>", "<path2>"],
-      "states": [
-        {"name": "In Progress", "id": "...", "group": "started"}
-      ],
-      "labels": [
-        {"name": "Bug", "id": "...", "color": "#eb144c"}
-      ],
-      "members": [
-        {"name": "...", "id": "...", "email": "..."}
-      ]
+      "name": "<name>",
+      "repos": ["<path1>"],
+      "states": [{"name": "...", "id": "...", "group": "..."}],
+      "labels": [{"name": "...", "id": "...", "color": "..."}],
+      "members": [{"name": "...", "id": "...", "email": "..."}]
     }
   ]
 }
@@ -177,46 +157,46 @@ Write to `$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json`:
 
 ---
 
-## Step 5 — Generate me.md
+## Step 5 — Generate Agent File
 
-Read the matching role template:
-
+Read the role template:
 ```bash
-cat "$CLAUDE_PLUGIN_ROOT/templates/roles/<role>.md"
+cat "$CLAUDE_PLUGIN_ROOT/templates/<role>.md"
 ```
 
-Replace all placeholders with actual values:
+Replace placeholders:
 
 | Placeholder | Value |
 |:------------|:------|
-| `{{USER_NAME}}` | User's full name |
-| `{{USER_EMAIL}}` | User's email |
-| `{{PLANE_USER_ID}}` | Plane user ID from Step 2 |
-| `{{USER_ROLE}}` | Role label (e.g., "Full-Stack Engineer") |
-| `{{USER_ROLE_DESCRIPTION}}` | Custom notes if role = "other", else remove line |
-| `{{WORKSPACE_SLUG}}` | Workspace slug |
-| `{{WRITES_CODE}}` | true or false |
-| `{{PROJECTS_SUMMARY}}` | Markdown table: Identifier \| Project Name \| Repos |
+| `{{AGENT_NAME}}` | Chosen agent name |
+| `{{AGENT_CONTEXT}}` | "You are acting as **[name]**, a [role title]." |
+| `{{AGENT_ROLE_TITLE}}` | Role display name (e.g., "DevOps Engineer") |
+| `{{PLANE_USER_ID}}` | Plane user ID |
+| `{{OWNER_NAME}}` | Same as agent name (self context) |
+| `{{CUSTOM_NOTES}}` | Remove the line |
 
-Write the result to `$CLAUDE_PLUGIN_ROOT/user/me.md`.
+Write to:
+```bash
+mkdir -p "$BASE_PATH/agents"
+# write to $BASE_PATH/agents/<agent-name>.md
+```
 
 ---
 
-## Step 6 — Confirm Setup
-
-Show a completion summary:
+## Step 6 — Confirm
 
 ```
 ✅ Plane workspace setup complete!
 
   You:      <name> (<role>) — <email>
+  Agent:    <agent-name>.md ✓
   Plane:    <workspace_slug> (User ID: <plane_user_id>)
   MCP:      plane-claude-mcp ✓
   Projects: <count> mapped
-  Agent:    user/me.md ✓
+  Scope:    <user|project|local>
 
 Next steps:
+  /helpers add devops    → Add a DevOps helper
   /helpers add pm        → Add a PM helper
   /helpers add ea        → Add an EA for briefings
-  /work <TICKET-123>     → Start working on a ticket
 ```

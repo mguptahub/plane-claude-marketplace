@@ -1,15 +1,22 @@
 ---
 name: helpers
-description: Manage your helper agents — list, add, modify, or delete agents like PM, EA, developer, or recruiter.
+description: Manage your helper agents — list, add, modify, or delete helpers like devops, pm, ea, designer, and more.
 user-invocable: true
-argument-hint: "[list|add|modify|delete] [agent-name-or-type]"
+argument-hint: "[list|add|modify|delete] [template-or-name]"
 ---
 
 # /helpers — Manage Helper Agents
 
-Add, modify, or remove helper agents that work alongside your personal `me.md` agent.
+Helpers are subagent instruction files spawned by your main agent for parallel or delegated work.
 
-Helper agents live in: `$CLAUDE_PLUGIN_ROOT/user/agents/`
+They live in: `$CLAUDE_PLUGIN_ROOT/user/helpers/`
+
+Load workspace config first:
+```bash
+cat "$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json" 2>/dev/null || \
+  cat "$(pwd)/.claude/plane-workspace.json" 2>/dev/null || \
+  cat ~/.claude/plane-workspace.json 2>/dev/null
+```
 
 ---
 
@@ -17,8 +24,8 @@ Helper agents live in: `$CLAUDE_PLUGIN_ROOT/user/agents/`
 
 | Input | Action |
 |:------|:-------|
-| `list` or no arguments | List installed helpers |
-| `add [type]` | Add a helper from template |
+| `list` or no args | List installed helpers |
+| `add [template]` | Add a helper from template |
 | `modify <name>` | Edit an existing helper |
 | `delete <name>` | Remove a helper |
 
@@ -27,13 +34,10 @@ Helper agents live in: `$CLAUDE_PLUGIN_ROOT/user/agents/`
 ## list
 
 ```bash
-ls "$CLAUDE_PLUGIN_ROOT/user/agents/" 2>/dev/null
+ls "$CLAUDE_PLUGIN_ROOT/user/helpers/" 2>/dev/null || echo "No helpers installed."
 ```
 
-For each `.md` file found, read the first few lines to extract `name` and `description` from frontmatter. Display as a table.
-
-If no helpers installed:
-> "No helpers installed yet. Run `/helpers add` to get started."
+Show each helper's name and description from frontmatter.
 
 ---
 
@@ -42,73 +46,69 @@ If no helpers installed:
 Show available templates:
 
 ```bash
-ls "$CLAUDE_PLUGIN_ROOT/templates/helpers/"
+ls "$CLAUDE_PLUGIN_ROOT/templates/"
 ```
 
-Available templates:
-| Type | What it does |
-|:-----|:-------------|
-| `pm` | Product Manager — scopes work, creates Plane tickets, manages backlog |
-| `ea` | Executive Assistant — monitors email/Slack, briefings |
-| `developer` | Developer colleague — picks up work items, implements |
-| `recruiter` | Recruiter — LinkedIn search, candidate shortlisting |
+Available templates (same set used for your own agent):
 
-If a type was specified in `$ARGUMENTS`, use it. Otherwise ask which template.
+| Template | Best for |
+|:---------|:---------|
+| `frontend` | UI/React work |
+| `backend` | APIs and services |
+| `fullstack` | Full-stack tasks |
+| `devops` | Helm, Terraform, infra |
+| `qa` | Testing and bug filing |
+| `pm` | Work item management, scoping |
+| `ea` | Email/Slack briefings |
+| `designer` | Wireframes, Figma, Pencil |
+| `recruiter` | LinkedIn search |
+| `other` | Custom role |
 
 Ask:
-1. **Name for this helper** — what you'll call them (e.g., "gaurav", "priya", "alex")
-2. **Any customisation?** — optional special instructions or focus areas
+1. **Which template?**
+2. **Name for this helper** — e.g., `akshat`, `goutham`, `design-bot`. This is what you'll use to invoke them.
+3. **Any custom focus or constraints?** (optional)
 
-Load workspace config:
+Read template:
 ```bash
-cat "$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json"
+cat "$CLAUDE_PLUGIN_ROOT/templates/<template>.md"
 ```
 
-Read the template:
-```bash
-cat "$CLAUDE_PLUGIN_ROOT/templates/helpers/<type>.md"
-```
-
-Replace all placeholders:
+Replace placeholders:
 
 | Placeholder | Value |
 |:------------|:------|
-| `{{HELPER_NAME}}` | Chosen name |
-| `{{OWNER_NAME}}` | User's name from workspace config |
-| `{{OWNER_PLANE_USER_ID}}` | User's Plane user ID |
-| `{{WORKSPACE_SLUG}}` | Workspace slug |
-| `{{CUSTOM_NOTES}}` | Custom instructions provided, or remove the line |
+| `{{AGENT_NAME}}` | Chosen helper name |
+| `{{AGENT_CONTEXT}}` | "You are acting as **[name]**, a [role] helping **[owner]**." |
+| `{{AGENT_ROLE_TITLE}}` | Role display name |
+| `{{PLANE_USER_ID}}` | Owner's Plane user ID from workspace config |
+| `{{OWNER_NAME}}` | Owner's name from workspace config |
+| `{{CUSTOM_NOTES}}` | Custom instructions, or remove the line |
 
 ```bash
-mkdir -p "$CLAUDE_PLUGIN_ROOT/user/agents"
+mkdir -p "$CLAUDE_PLUGIN_ROOT/user/helpers"
 ```
 
-Write to `$CLAUDE_PLUGIN_ROOT/user/agents/<name>.md`.
+Write to `$CLAUDE_PLUGIN_ROOT/user/helpers/<name>.md`.
 
 Confirm:
-> "✅ Helper `<name>` added. Use `/work <name> <task>` to route tasks to them."
+> "✅ Helper `<name>` added. Spawn them with the Agent tool pointing to `$CLAUDE_PLUGIN_ROOT/user/helpers/<name>.md`. Use `run_in_background: true` for parallel tasks."
 
 ---
 
 ## modify
 
 ```bash
-cat "$CLAUDE_PLUGIN_ROOT/user/agents/<name>.md"
+cat "$CLAUDE_PLUGIN_ROOT/user/helpers/<name>.md"
 ```
 
-Show the current content and ask what to change.
-Apply edits and write back to the same file.
+Show content, ask what to change. Write back.
 
 ---
 
 ## delete
 
-First confirm:
-> "Are you sure you want to delete the `<name>` helper? This cannot be undone."
-
-On confirmation:
+Confirm first. Then:
 ```bash
-rm "$CLAUDE_PLUGIN_ROOT/user/agents/<name>.md"
+rm "$CLAUDE_PLUGIN_ROOT/user/helpers/<name>.md"
 ```
-
-Confirm deletion.
