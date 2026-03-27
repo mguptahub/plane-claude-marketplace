@@ -1,0 +1,4 @@
+{
+  "description": "Plane workspace plugin hooks — none active by default. Hooks are configured per-user via /setup.",
+  "hooks": {}
+}

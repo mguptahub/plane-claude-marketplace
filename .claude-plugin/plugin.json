@@ -1,0 +1,8 @@
+{
+  "name": "plane-workspace",
+  "description": "Connect Claude Code to your Plane workspace. Provides work item management, project context, and role-based AI agents for your entire team.",
+  "author": {
+    "name": "Plane",
+    "email": "support@plane.so"
+  }
+}

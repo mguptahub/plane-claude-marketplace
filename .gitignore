@@ -1,0 +1,11 @@
+# User-generated files — personal config, not for sharing
+user/me.md
+user/agents/
+user/plane-workspace.json
+
+# Keep the directory structure
+!user/.gitkeep
+!user/agents/.gitkeep
+
+# macOS
+.DS_Store
