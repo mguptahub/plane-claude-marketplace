@@ -8,31 +8,39 @@ allowed-tools: ["Bash(grep *)", "Bash(ls *)", "Bash(cat *)", "Bash(mkdir *)", "B
 
 # /setup — Plane Workspace Setup Wizard
 
-## Pre-check: Detect Install Scope
+## Pre-check: Detect Install Scope & Paths
 
-The installer wrote config to the project dir for local/project scope, or to the user's Claude home for user scope. Check which:
+First, find the plugin's own installed file — this gives us the Claude home and templates dir without any hardcoding:
 
 ```bash
-grep -rq "plane-claude-mcp\|mguptahub-plane-claude-marketplace\|plane-workspace" \
+SKILL_FILE=$(find "$HOME" -maxdepth 8 -name "SKILL.md" \
+  -path "*/plane-workspace/skills/setup/*" 2>/dev/null | head -1)
+
+# Claude home = everything before /plugins/
+CLAUDE_HOME=$(echo "$SKILL_FILE" | sed 's|/plugins/.*||')
+
+# Templates dir = sibling of skills/
+TEMPLATES_DIR=$(echo "$SKILL_FILE" | sed 's|/skills/setup/SKILL.md|/templates|')
+
+echo "Claude home: $CLAUDE_HOME"
+echo "Templates: $TEMPLATES_DIR"
+```
+
+This works regardless of how the user named their Claude home (`~/.claude`, `~/.claude-plane`, or anything else).
+
+Now detect scope — the installer writes a reference into the project dir for local/project scope:
+
+```bash
+grep -rq "plane-claude-mcp\|plane-claude-marketplace\|plane-workspace" \
   "$(pwd)/.claude/" "$(pwd)/.mcp.json" 2>/dev/null \
-  && echo "LOCAL: $(pwd)/.claude" \
-  || echo "USER"
+  && echo "LOCAL" || echo "USER"
 ```
 
 Determine `BASE_PATH`:
-- Output starts with `LOCAL:` → **local/project scope** → `BASE_PATH = $(pwd)/.claude`
-- Output is `USER` → **user scope** → find Claude home:
+- `LOCAL` → **local/project scope** → `BASE_PATH = $(pwd)/.claude`
+- `USER` → **user scope** → `BASE_PATH = $CLAUDE_HOME`
 
-```bash
-# Find the user's Claude home (has a plugins/ directory)
-for dir in "$HOME/.claude-plane" "$HOME/.claude"; do
-  [ -d "$dir/plugins" ] && echo $dir && break
-done
-```
-
-→ `BASE_PATH = <found dir>`
-
-Show the user: *"Detected scope: [local|user] — all files will be written to `BASE_PATH`"*
+Show the user: *"Detected: [local|user] scope — writing to `<BASE_PATH>`"*
 
 Check for existing config:
 ```bash
@@ -169,16 +177,10 @@ Write to `$BASE_PATH/plane-workspace.json`:
 
 ## Step 5 — Generate Agent File
 
-Find the templates directory from the plugin installation:
-```bash
-find "$HOME" "$(pwd)" -name "frontend.md" -path "*/plane-workspace/templates/*" 2>/dev/null | head -1
-```
+Use `TEMPLATES_DIR` derived in the Pre-check step. Read the role template:
 
-Derive `TEMPLATES_DIR` from the result (parent directory of the found file).
-
-Read the role template:
 ```bash
-cat "<TEMPLATES_DIR>/<role>.md"
+cat "$TEMPLATES_DIR/<role>.md"
 ```
 
 Replace all placeholders:
