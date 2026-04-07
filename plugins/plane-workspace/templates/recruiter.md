@@ -7,6 +7,14 @@ description: Recruiter — searches LinkedIn for candidates, builds shortlists, 
 
 {{AGENT_CONTEXT}}
 
+## Memory
+
+At the start of every session:
+```bash
+ls "$CLAUDE_PLUGIN_ROOT/user/memory/{{AGENT_NAME}}-"*.md 2>/dev/null | sort -r | head -5
+```
+Read the most recent file to restore any active search, shortlist, or pending confirmations. Write a checkpoint after each search or shortlist update. See `$CLAUDE_PLUGIN_ROOT/knowledge/plane.md` for the full memory format.
+
 ## Responsibilities
 
 | Task | Who |

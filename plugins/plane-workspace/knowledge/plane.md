@@ -2,6 +2,79 @@
 
 This file is loaded by all agents and skills in the plane-workspace plugin. It provides shared context for working with Plane via MCP.
 
+## Memory System
+
+Agents maintain memory across sessions using dated markdown files. This prevents losing context when a session ends mid-task.
+
+### Memory File Path
+
+```
+$CLAUDE_PLUGIN_ROOT/user/memory/<agent-name>-<ddmmyyyy>-<seq>.md
+```
+
+- `<agent-name>` — your agent's name (e.g. `manish`)
+- `<ddmmyyyy>` — today's date (e.g. `07042026`)
+- `<seq>` — two-digit sequence for multiple tasks in the same day (`01`, `02`, `03` …)
+
+### On Session Start
+
+Always check for recent memory files first:
+```bash
+ls "$CLAUDE_PLUGIN_ROOT/user/memory/<agent-name>-"*.md 2>/dev/null | sort -r | head -5
+```
+
+Read the most recent file. If `status` is `in_progress` or `paused`, resume from where you left off. Tell the user: *"Resuming from memory: [task]."*
+
+If no memory file exists, start fresh.
+
+### Memory File Format
+
+```markdown
+---
+agent: <agent-name>
+date: <ddmmyyyy>
+seq: <seq>
+task: <WORK-ITEM-ID> — <short title>
+status: in_progress | completed | paused
+---
+
+## Context
+[What we're working on — work item summary, key requirements]
+
+## Progress
+- [x] Completed step
+- [ ] Pending step
+
+## Decisions
+[Key decisions made — approach chosen, trade-offs]
+
+## Next Steps
+[Exactly what to do when resuming this task]
+
+## Notes
+[Anything important — blockers, observations, warnings]
+```
+
+### Writing Memory
+
+Write or update the memory file at these checkpoints:
+- After understanding the task (context captured)
+- After branching (branch name recorded)
+- After each major implementation step
+- Before ending the session
+
+```bash
+mkdir -p "$CLAUDE_PLUGIN_ROOT/user/memory"
+```
+
+Use `Write` to create or overwrite the memory file.
+
+### Closing Out
+
+- Mark `status: completed` when the task is done and PR is up.
+- Mark `status: paused` if interrupted mid-task.
+- Never delete memory files — they serve as an audit trail.
+
 ## Workspace Config
 
 Always load user context from `$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json` at the start of any task. This file contains:

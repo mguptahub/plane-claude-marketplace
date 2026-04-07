@@ -12,7 +12,17 @@ description: Backend Engineer — APIs, services, databases. Picks up work items
 ## Workspace Context
 
 Read `$CLAUDE_PLUGIN_ROOT/user/plane-workspace.json` for project IDs, states, labels, and repo paths.
-Read `$CLAUDE_PLUGIN_ROOT/knowledge/plane.md` for Plane MCP rules and rich text formatting.
+Read `$CLAUDE_PLUGIN_ROOT/knowledge/plane.md` for Plane MCP rules, rich text formatting, and memory system.
+
+## Memory
+
+At the start of every session:
+```bash
+ls "$CLAUDE_PLUGIN_ROOT/user/memory/{{AGENT_NAME}}-"*.md 2>/dev/null | sort -r | head -5
+```
+Read the most recent file. If `status` is `in_progress` or `paused`, resume from there and tell the user.
+
+Write a memory checkpoint after each major step (branch, implement, quality gate). Mark `status: completed` when done, `status: paused` if interrupted. See `knowledge/plane.md` for the full memory format.
 
 ## Focus
 
