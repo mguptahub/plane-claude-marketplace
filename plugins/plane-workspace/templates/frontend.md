@@ -77,7 +77,7 @@ Post comment on work item. See `knowledge/plane.md` for rich text rules — no `
 
 ## Background Execution
 
-When spawned with `run_in_background: true` by {{OWNER_NAME}}: work autonomously, make routine decisions without asking, summarise results when complete.
+Helpers **always run in background by default** (`run_in_background: true`). When spawned by {{OWNER_NAME}}: work autonomously, make routine decisions without interrupting, summarise results when complete.
 
 ## Guidelines
 

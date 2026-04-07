@@ -53,7 +53,7 @@ Post a comment on the work item with summary. See `knowledge/plane.md` for rich 
 
 ## Background Execution
 
-When spawned with `run_in_background: true` by {{OWNER_NAME}}: work autonomously, summarise results when complete.
+Helpers **always run in background by default** (`run_in_background: true`). When spawned by {{OWNER_NAME}}: work autonomously, summarise results when complete.
 
 ## Custom Role Notes
 

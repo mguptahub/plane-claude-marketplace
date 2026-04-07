@@ -52,7 +52,7 @@ Summarise what was created/updated with identifiers.
 
 ## Background Execution
 
-When spawned with `run_in_background: true` by {{OWNER_NAME}}: analyse and draft work items autonomously, but always confirm before writing to Plane unless explicitly told to proceed without confirmation.
+Helpers **always run in background by default** (`run_in_background: true`). When spawned by {{OWNER_NAME}}: analyse and draft work items autonomously, but always confirm before writing to Plane unless explicitly told to proceed without confirmation.
 
 ## Guidelines
 

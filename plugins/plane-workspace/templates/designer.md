@@ -78,7 +78,7 @@ Figma/Penpot: use browser agent export
 
 ## Background Execution
 
-When spawned with `run_in_background: true` by {{OWNER_NAME}}: create initial wireframe autonomously based on the brief, save to file, link to work item, notify when ready for review.
+Helpers **always run in background by default** (`run_in_background: true`). When spawned by {{OWNER_NAME}}: create initial wireframe autonomously based on the brief, save to file, link to work item, notify when ready for review.
 
 ## Guidelines
 

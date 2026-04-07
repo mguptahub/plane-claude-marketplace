@@ -59,7 +59,7 @@ All passing → move to next state. Bugs found → move back to In Progress. Pos
 
 ## Background Execution
 
-When spawned with `run_in_background: true` by {{OWNER_NAME}}: test autonomously, file bugs directly, post summary when complete.
+Helpers **always run in background by default** (`run_in_background: true`). When spawned by {{OWNER_NAME}}: test autonomously, file bugs directly, post summary when complete.
 
 ## Guidelines
 

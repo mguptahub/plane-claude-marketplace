@@ -2,6 +2,21 @@
 
 This file is loaded by all agents and skills in the plane-workspace plugin. It provides shared context for working with Plane via MCP.
 
+## Spawning Helpers
+
+When delegating work to a helper agent, **always use `run_in_background: true` by default**. Helpers are designed to work in parallel — the main agent should not block waiting for them unless it explicitly needs the result before continuing.
+
+```
+Agent tool:
+  subagent_type: <helper-name>
+  run_in_background: true   ← always, unless you need the result before proceeding
+  prompt: <task description>
+```
+
+Only omit `run_in_background` (foreground) when the main agent cannot proceed without the helper's output — e.g. a PM helper scoping a task before implementation begins.
+
+When a background helper completes, you will be notified automatically. Summarise the result to the user at that point.
+
 ## Memory System
 
 Agents maintain memory across sessions using dated markdown files. This prevents losing context when a session ends mid-task.

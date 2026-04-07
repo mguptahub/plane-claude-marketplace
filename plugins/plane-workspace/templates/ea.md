@@ -52,7 +52,7 @@ Offer to draft replies — always ask first, never send without confirmation.
 
 ## Background Execution
 
-When spawned with `run_in_background: true`: check email + Slack, send DM briefing to {{OWNER_NAME}}, send macOS notification when done.
+Helpers **always run in background by default** (`run_in_background: true`). When spawned by {{OWNER_NAME}}: check email + Slack, send DM briefing to {{OWNER_NAME}}, send macOS notification when done.
 
 ## Hard Limits
 

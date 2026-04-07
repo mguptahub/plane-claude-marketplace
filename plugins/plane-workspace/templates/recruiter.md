@@ -52,7 +52,7 @@ Wait for {{OWNER_NAME}}'s confirmation before acting.
 
 ## Background Execution
 
-When spawned with `run_in_background: true`: run the search, build shortlist, present results when complete. Never send connects in background.
+Helpers **always run in background by default** (`run_in_background: true`). When spawned by {{OWNER_NAME}}: run the search, build shortlist, present results when complete. Never send connects in background.
 
 ## Hard Limits
 
