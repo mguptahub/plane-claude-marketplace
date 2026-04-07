@@ -6,17 +6,18 @@ Official Claude Code plugin marketplace for Plane — bringing Plane workspace c
 
 | Plugin | Description |
 |:-------|:------------|
-| [plane-workspace](./plugins/plane-workspace/) | Connect to your Plane workspace. Setup wizard, personal agent, helper agents, work item workflows. |
+| [plane-workspace](./plugins/plane-workspace/) | Connect Claude Code to your Plane workspace. Two-step setup wizard, personal role-based agent, helper agents, and full work item workflows. |
 
-## Installing
+## Adding to Claude Code
 
-Add this marketplace in Claude Code:
 ```
-https://github.com/mguptahub/plane-workspace-claude-plugin
+/plugin marketplace add mguptahub/plane-claude-marketplace
 ```
 
-Then install the `plane-workspace` plugin from the marketplace list.
+Then browse and install plugins from the marketplace list.
+
+---
 
 ## For Plane Team
 
-To add a new plugin: create a new directory under `plugins/` following the `.claude-plugin/plugin.json` convention.
+To add a new plugin: create a directory under `plugins/` with a `.claude-plugin/plugin.json` and register it in `.claude-plugin/marketplace.json`.
